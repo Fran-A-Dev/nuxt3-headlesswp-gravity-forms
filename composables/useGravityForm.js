@@ -32,6 +32,8 @@ export default function useGravityForm() {
               label
               isRequired
               placeholder
+              maxLength
+              description
             }
             ... on TextAreaField {
               databaseId

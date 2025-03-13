@@ -1,12 +1,11 @@
 <script setup>
-import { ref, shallowRef, onMounted, watch } from "vue";
+import { ref, shallowRef, onMounted } from "vue";
 import useGravityForm from "~/composables/useGravityForm";
 import { useFormFields } from "~/composables/useFormFields";
 
 const { fetchForm, submitForm } = useGravityForm();
 const { resolveFieldComponent } = useFormFields();
 
-// Use shallowRef for better performance with form values
 const formValues = shallowRef({});
 const formFields = ref([]);
 const pending = ref(true);
@@ -35,35 +34,19 @@ const addressLabels = {
 
 onMounted(async () => {
   try {
-    console.log("Component mounted, fetching form...");
     const { data, error: fetchError } = await fetchForm(1);
-
-    // Log the address field structure
-    const addressField = data.value.find((f) => f.type === "ADDRESS");
-    console.log("Address field structure:", {
-      field: addressField,
-      inputs: addressField?.inputs,
-    });
-
-    console.log("Fetch response:", {
-      data: data.value,
-      error: fetchError?.value,
-    });
 
     if (fetchError?.value) {
       throw new Error(fetchError.value);
     }
 
     if (data.value && Array.isArray(data.value)) {
-      console.log("GraphQL Response:", data.value);
       formFields.value = data.value;
-      console.log("Form fields loaded:", formFields.value.length);
 
       // Initialize form values
       const values = {};
       data.value.forEach((field) => {
         if (field.type === "ADDRESS") {
-          console.log("Initializing address field:", field);
           values[field.databaseId] = {
             street: "",
             lineTwo: "",
@@ -72,9 +55,6 @@ onMounted(async () => {
             zip: "",
             country: "US",
           };
-
-          // Log the field inputs for debugging
-          console.log("Address field inputs:", field.inputs);
         } else if (field.type === "CHECKBOX" || field.type === "MULTISELECT") {
           values[field.databaseId] = [];
         } else if (field.type === "NAME") {
@@ -91,45 +71,56 @@ onMounted(async () => {
       });
 
       formValues.value = values;
-      console.log("Form values initialized:", formValues.value);
-    } else {
-      console.error("Unexpected data structure:", data.value);
     }
   } catch (err) {
     error.value = err.message;
-    console.error("Error loading form:", err);
   } finally {
     pending.value = false;
   }
 });
 
-// Add a watch to debug address field changes
-watch(
-  () => formValues.value[7], // Assuming 7 is your address field ID
-  (newValue) => {
-    console.log("Address field updated:", newValue);
-  },
-  { deep: true }
-);
-
 const handleSubmit = async () => {
   try {
     pending.value = true;
-
-    // Debug log for address field
-    const addressField = formValues.value[7]; // Assuming 7 is your address field ID
-    console.log("Address field values before submission:", addressField);
-
-    console.log("Submitting form values:", formValues.value);
     const response = await submitForm(1, formValues.value);
-    console.log("Form submission response:", response);
+
+    if (response?.errors?.length > 0) {
+      throw new Error(response.errors[0].message);
+    }
 
     if (response?.confirmation) {
-      console.log("Success:", response.confirmation.message);
-      alert(response.confirmation.message);
+      const temp = document.createElement("div");
+      temp.innerHTML = response.confirmation.message;
+      const cleanMessage = temp.textContent || temp.innerText;
+      alert(cleanMessage);
+
+      // Reset form values
+      formFields.value.forEach((field) => {
+        if (field.type === "ADDRESS") {
+          formValues.value[field.databaseId] = {
+            street: "",
+            lineTwo: "",
+            city: "",
+            state: "",
+            zip: "",
+            country: "US",
+          };
+        } else if (field.type === "CHECKBOX" || field.type === "MULTISELECT") {
+          formValues.value[field.databaseId] = [];
+        } else if (field.type === "NAME") {
+          formValues.value[field.databaseId] = {
+            prefix: "",
+            first: "",
+            middle: "",
+            last: "",
+            suffix: "",
+          };
+        } else {
+          formValues.value[field.databaseId] = "";
+        }
+      });
     }
   } catch (err) {
-    console.error("Form submission error:", err);
     error.value = err.message;
     alert(`Error submitting form: ${err.message}`);
   } finally {
@@ -147,12 +138,19 @@ const handleSubmit = async () => {
         <!-- TEXT Field -->
         <div v-if="field.type === 'TEXT'" class="form-group">
           <label>{{ field.label }}</label>
-          <input
-            type="text"
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || ''"
-            class="form-input"
-          />
+          <div>
+            <input
+              type="text"
+              v-model="formValues[field.databaseId]"
+              :placeholder="field.placeholder || ''"
+              :maxlength="field.maxLength || undefined"
+              :required="field.isRequired"
+              class="form-input"
+            />
+            <div v-if="field.description" class="text-sm text-gray-600 mt-1">
+              {{ field.description }}
+            </div>
+          </div>
         </div>
 
         <!-- EMAIL Field -->
@@ -270,6 +268,9 @@ const handleSubmit = async () => {
                 >
                   <option value="US">United States</option>
                   <option value="CA">Canada</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="AU">Australia</option>
+                  <option value="NZ">New Zealand</option>
                 </select>
               </template>
               <template v-else>
@@ -283,6 +284,17 @@ const handleSubmit = async () => {
             </div>
           </div>
         </div>
+
+        <!-- WEBSITE Field -->
+        <div v-else-if="field.type === 'WEBSITE'" class="form-group">
+          <label>{{ field.label }}</label>
+          <input
+            type="url"
+            v-model="formValues[field.databaseId]"
+            :placeholder="field.placeholder || 'https://example.com'"
+            class="form-input"
+          />
+        </div>
       </div>
 
       <button
@@ -293,15 +305,6 @@ const handleSubmit = async () => {
         {{ pending ? "Submitting..." : "Submit" }}
       </button>
     </form>
-
-    <!-- Debug info -->
-    <div class="mt-4 p-4 bg-gray-100 rounded">
-      <p>Debug Info:</p>
-      <p>Pending: {{ pending }}</p>
-      <p>Error: {{ error }}</p>
-      <p>Fields Count: {{ formFields?.length || 0 }}</p>
-      <p>First Field Type: {{ formFields?.[0]?.type || "none" }}</p>
-    </div>
   </div>
 </template>
 
