@@ -36,6 +36,7 @@ const handleChange = (event) => {
       :value="modelValue"
       @change="handleChange"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+      size="4"
     >
       <option
         v-for="choice in field.choices"

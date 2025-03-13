@@ -14,7 +14,7 @@ const emit = defineEmits(["update:modelValue"]);
 
 const updateNamePart = (inputId, value) => {
   emit("update:modelValue", {
-    ...modelValue,
+    ...props.modelValue,
     [inputId]: value,
   });
 };

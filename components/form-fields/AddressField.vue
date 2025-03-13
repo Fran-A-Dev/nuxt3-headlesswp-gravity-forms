@@ -14,7 +14,7 @@ const emit = defineEmits(["update:modelValue"]);
 
 const updateAddressPart = (inputId, value) => {
   emit("update:modelValue", {
-    ...modelValue,
+    ...props.modelValue,
     [inputId]: value,
   });
 };

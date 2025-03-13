@@ -1,3 +1,6 @@
+import { ref } from "vue";
+import { defineAsyncComponent } from "vue";
+
 export const useFormFields = () => {
   // Keep track of logged types
   const loggedTypes = new Set();

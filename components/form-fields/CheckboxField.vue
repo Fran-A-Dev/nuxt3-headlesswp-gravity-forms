@@ -12,11 +12,13 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const handleChange = (value, checked) => {
-  const currentValues = Array.isArray(modelValue) ? modelValue : [];
+const handleChange = (choiceValue, checked) => {
+  console.log("Checkbox change:", { choiceValue, checked });
+  const currentValues = Array.isArray(props.modelValue) ? props.modelValue : [];
   const newValues = checked
-    ? [...currentValues, value]
-    : currentValues.filter((v) => v !== value);
+    ? [...currentValues, choiceValue]
+    : currentValues.filter((v) => v !== choiceValue);
+  console.log("New checkbox values:", newValues);
   emit("update:modelValue", newValues);
 };
 </script>
@@ -29,20 +31,20 @@ const handleChange = (value, checked) => {
     </label>
     <div class="space-y-2">
       <div
-        v-for="choice in field.choices"
+        v-for="(choice, index) in field.choices"
         :key="choice.value"
         class="flex items-center"
       >
         <input
           type="checkbox"
-          :id="`${field.databaseId}-${choice.value}`"
+          :id="`${field.databaseId}-${index}`"
           :value="choice.value"
-          :checked="modelValue?.includes(choice.value)"
+          :checked="modelValue.includes(choice.value)"
           @change="handleChange(choice.value, $event.target.checked)"
           class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
         />
         <label
-          :for="`${field.databaseId}-${choice.value}`"
+          :for="`${field.databaseId}-${index}`"
           class="ml-2 block text-sm text-gray-700"
         >
           {{ choice.text }}
