@@ -12,8 +12,8 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const handleChange = (event) => {
-  const selectedOptions = Array.from(event.target.selectedOptions).map(
+const handleChange = (e) => {
+  const selectedOptions = Array.from(e.target.selectedOptions).map(
     (option) => option.value
   );
   emit("update:modelValue", selectedOptions);
@@ -31,12 +31,11 @@ const handleChange = (event) => {
     </label>
     <select
       :id="field.databaseId"
-      multiple
-      :required="field.isRequired"
       :value="modelValue"
       @change="handleChange"
+      :required="field.isRequired"
+      multiple
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-      size="4"
     >
       <option
         v-for="choice in field.choices"
@@ -51,3 +50,9 @@ const handleChange = (event) => {
     >
   </div>
 </template>
+
+<style scoped>
+select[multiple] {
+  min-height: 100px;
+}
+</style>

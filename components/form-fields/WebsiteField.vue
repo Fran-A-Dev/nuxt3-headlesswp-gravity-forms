@@ -11,6 +11,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue"]);
+
+const handleInput = (e) => {
+  emit("update:modelValue", e.target.value);
+};
 </script>
 
 <template>
@@ -25,10 +29,10 @@ const emit = defineEmits(["update:modelValue"]);
     <input
       :id="field.databaseId"
       type="url"
+      :value="modelValue"
+      @input="handleInput"
       :placeholder="field.placeholder || 'https://'"
       :required="field.isRequired"
-      :value="modelValue"
-      @input="emit('update:modelValue', $event.target.value)"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
     />
   </div>

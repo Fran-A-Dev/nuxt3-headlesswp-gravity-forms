@@ -11,6 +11,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue"]);
+
+const handleInput = (e) => {
+  emit("update:modelValue", e.target.value);
+};
 </script>
 
 <template>
@@ -28,7 +32,7 @@ const emit = defineEmits(["update:modelValue"]);
       :placeholder="field.placeholder"
       :required="field.isRequired"
       :value="modelValue"
-      @input="emit('update:modelValue', $event.target.value)"
+      @input="handleInput"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
     />
   </div>

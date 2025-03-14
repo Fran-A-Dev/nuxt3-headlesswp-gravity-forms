@@ -11,6 +11,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue"]);
+
+const handleChange = (e) => {
+  emit("update:modelValue", e.target.value);
+};
 </script>
 
 <template>
@@ -24,9 +28,9 @@ const emit = defineEmits(["update:modelValue"]);
     </label>
     <select
       :id="field.databaseId"
-      :required="field.isRequired"
       :value="modelValue"
-      @change="emit('update:modelValue', $event.target.value)"
+      @change="handleChange"
+      :required="field.isRequired"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
     >
       <option value="">Select an option</option>

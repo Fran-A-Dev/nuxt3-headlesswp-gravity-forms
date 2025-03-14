@@ -130,199 +130,89 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="p-4">
-    <div v-if="pending">Loading form...</div>
-    <div v-else-if="error">{{ error }}</div>
-    <form v-else @submit.prevent="handleSubmit">
-      <div v-for="field in formFields" :key="field.databaseId" class="mb-4">
-        <!-- TEXT Field -->
-        <div v-if="field.type === 'TEXT'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div>
-            <input
-              type="text"
-              v-model="formValues[field.databaseId]"
-              :placeholder="field.placeholder || ''"
-              :maxlength="field.maxLength || undefined"
-              :required="field.isRequired"
-              class="form-input"
-            />
-            <div v-if="field.description" class="text-sm text-gray-600 mt-1">
-              {{ field.description }}
-            </div>
-          </div>
-        </div>
-
-        <!-- EMAIL Field -->
-        <div v-else-if="field.type === 'EMAIL'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="email"
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || ''"
-            :required="field.isRequired"
-            class="form-input"
-          />
-        </div>
-
-        <!-- TEXTAREA Field -->
-        <div v-else-if="field.type === 'TEXTAREA'" class="form-group">
-          <label>{{ field.label }}</label>
-          <textarea
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || ''"
-            class="form-input"
-          ></textarea>
-        </div>
-
-        <!-- SELECT Field -->
-        <div v-else-if="field.type === 'SELECT'" class="form-group">
-          <label>{{ field.label }}</label>
-          <select v-model="formValues[field.databaseId]" class="form-input">
-            <option value="">Select an option</option>
-            <option
-              v-for="choice in field.choices"
-              :key="choice.value"
-              :value="choice.value"
-            >
-              {{ choice.text }}
-            </option>
-          </select>
-        </div>
-
-        <!-- MULTISELECT Field -->
-        <div v-else-if="field.type === 'MULTISELECT'" class="form-group">
-          <label>{{ field.label }}</label>
-          <select
-            v-model="formValues[field.databaseId]"
-            multiple
-            class="form-input"
-          >
-            <option
-              v-for="choice in field.choices"
-              :key="choice.value"
-              :value="choice.value"
-            >
-              {{ choice.text }}
-            </option>
-          </select>
-        </div>
-
-        <!-- CHECKBOX Field -->
-        <div v-else-if="field.type === 'CHECKBOX'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div v-for="choice in field.choices" :key="choice.value">
-            <label>
-              <input
-                type="checkbox"
-                :value="choice.value"
-                v-model="formValues[field.databaseId]"
-              />
-              {{ choice.text }}
-            </label>
-          </div>
-        </div>
-
-        <!-- RADIO Field -->
-        <div v-else-if="field.type === 'RADIO'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div v-for="choice in field.choices" :key="choice.value">
-            <label>
-              <input
-                type="radio"
-                :value="choice.value"
-                v-model="formValues[field.databaseId]"
-              />
-              {{ choice.text }}
-            </label>
-          </div>
-        </div>
-
-        <!-- NAME Field -->
-        <div v-else-if="field.type === 'NAME'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div class="space-y-2">
-            <template v-if="field.inputs">
-              <input
-                v-for="input in field.inputs"
-                :key="input.id"
-                type="text"
-                v-model="formValues[field.databaseId][input.key]"
-                :placeholder="input.label"
-                class="form-input"
-              />
-            </template>
-          </div>
-        </div>
-
-        <!-- ADDRESS Field -->
-        <div v-else-if="field.type === 'ADDRESS'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div class="space-y-2">
-            <div v-for="(label, key) in addressLabels" :key="key" class="mb-2">
-              <label class="text-sm text-gray-600">{{ label }}</label>
-              <template v-if="key === 'country'">
-                <select
-                  v-model="formValues[field.databaseId][key]"
-                  class="form-input"
-                >
-                  <option value="US">United States</option>
-                  <option value="CA">Canada</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="AU">Australia</option>
-                  <option value="NZ">New Zealand</option>
-                </select>
-              </template>
-              <template v-else>
-                <input
-                  type="text"
-                  :placeholder="label"
-                  v-model="formValues[field.databaseId][key]"
-                  class="form-input"
-                />
-              </template>
-            </div>
-          </div>
-        </div>
-
-        <!-- WEBSITE Field -->
-        <div v-else-if="field.type === 'WEBSITE'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="url"
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || 'https://example.com'"
-            class="form-input"
-          />
-        </div>
+  <div class="form-container">
+    <form @submit.prevent="handleSubmit" v-if="!pending">
+      <div
+        v-for="field in formFields"
+        :key="field.databaseId"
+        class="form-field"
+      >
+        <component
+          :is="resolveFieldComponent(field.type)"
+          :field="field"
+          v-model="formValues[field.databaseId]"
+        />
+        <span v-if="field.description" class="field-description">
+          {{ field.description }}
+        </span>
       </div>
 
-      <button
-        type="submit"
-        class="bg-blue-500 text-white px-4 py-2 rounded"
-        :disabled="pending"
-      >
-        {{ pending ? "Submitting..." : "Submit" }}
-      </button>
+      <button type="submit" :disabled="pending">Submit</button>
     </form>
   </div>
 </template>
 
 <style scoped>
-.form-group {
-  @apply mb-4;
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
-.form-input {
-  @apply w-full p-2 border border-gray-300 rounded;
+.form-field {
+  margin-bottom: 1.5rem;
 }
 
-.checkbox-item,
-.radio-item {
-  @apply flex items-center gap-2 mb-2;
+.field-description {
+  display: block;
+  font-size: 0.875rem;
+  color: #666;
+  margin-top: 0.25rem;
 }
 
-label {
-  @apply block mb-1 font-medium;
+button {
+  background-color: #007bff;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.field-wrapper {
+  margin-bottom: 0.5rem;
+}
+
+.field-wrapper label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.field-wrapper input,
+.field-wrapper select,
+.field-wrapper textarea {
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.field-wrapper .checkbox-option input,
+.field-wrapper .radio-option input {
+  width: auto;
+  display: inline-block;
+  margin-right: 0.5rem;
 }
 </style>
