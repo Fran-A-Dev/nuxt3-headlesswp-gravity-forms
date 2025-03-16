@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 
 const props = defineProps({
   field: {
@@ -22,13 +22,38 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 const addressValues = reactive({ ...props.modelValue });
+const errorMessage = ref("");
+
+const postalCodePatterns = {
+  US: /^\d{5}(-\d{4})?$/, // US ZIP code
+  CA: /^[A-Za-z]\d[A-Za-z] \d[A-Za-z]\d$/, // Canadian postal code
+  GB: /^([Gg][Ii][Rr] 0[Aa]{2}|[A-Za-z]{1,2}[0-9][0-9]?[A-Za-z]?[ ]?[0-9][A-Za-z]{2})$/, // UK postal code
+  AU: /^\d{4}$/, // Australian postal code
+  NZ: /^\d{4}$/, // New Zealand postal code
+};
+
+const validateAddress = () => {
+  const { street, city, state, zip, country } = addressValues;
+  const pattern = postalCodePatterns[country];
+
+  if (!street || !city || !state || !zip) {
+    errorMessage.value = "Please fill out all required fields.";
+  } else if (pattern && !pattern.test(zip)) {
+    errorMessage.value =
+      "Please enter a valid postal code for the selected country.";
+  } else {
+    errorMessage.value = ""; // Clear error message if valid
+  }
+
+  emit("update:modelValue", { ...addressValues }); // Emit updated address values
+};
 
 watch(
-  addressValues,
-  (newValues) => {
-    emit("update:modelValue", { ...newValues });
-  },
-  { deep: true }
+  () => props.modelValue,
+  (newValue) => {
+    Object.assign(addressValues, newValue); // Sync local ref with prop
+    validateAddress(); // Validate the new value
+  }
 );
 </script>
 
@@ -44,6 +69,7 @@ watch(
               v-model="addressValues.street"
               placeholder="Street Address"
               :required="field.isRequired"
+              @input="validateAddress"
             />
           </div>
           <div class="full-width">
@@ -57,11 +83,13 @@ watch(
               v-model="addressValues.city"
               placeholder="City"
               :required="field.isRequired"
+              @input="validateAddress"
             />
             <input
               v-model="addressValues.state"
               placeholder="State/Province"
               :required="field.isRequired"
+              @input="validateAddress"
             />
           </div>
           <div class="zip-country-group">
@@ -69,10 +97,12 @@ watch(
               v-model="addressValues.zip"
               placeholder="ZIP/Postal Code"
               :required="field.isRequired"
+              @input="validateAddress"
             />
             <select
               v-model="addressValues.country"
               :required="field.isRequired"
+              @change="validateAddress"
             >
               <option value="US">United States</option>
               <option value="CA">Canada</option>
@@ -82,6 +112,9 @@ watch(
             </select>
           </div>
         </div>
+        <p v-if="errorMessage" class="text-red-500 text-sm">
+          {{ errorMessage }}
+        </p>
       </div>
     </form>
   </div>
