@@ -1,13 +1,22 @@
 <template>
   <div>
-    <h2>Bouldering Home Page</h2>
+    <h2>Headless WordPress Demo with Nuxt.js and WPGraphQL</h2>
     <p>
-      Bouldering is a form of rock climbing that is performed on small rock
-      formations or artificial rock walls without the use of ropes or harnesses.
-      While bouldering can be done without any equipment, most climbers use
-      climbing shoes to help secure footholds, chalk to keep their hands dry and
-      to provide a firmer grip, and bouldering mats to prevent injuries from
-      falls.
+      Welcome to our demo showcasing the integration of various technologies in
+      a headless WordPress setup. Here's what you can expect:
+    </p>
+    <ul>
+      <li><strong>WPGraphQL</strong> and Headless WordPress for the blog.</li>
+      <li><strong>REST API</strong> for the products pages.</li>
+      <li>
+        <strong>WPGraphQL</strong> for Gravity Forms in headless WordPress for
+        the Questionnaire.
+      </li>
+      <li><strong>Nuxt.js</strong> for the frontend framework.</li>
+    </ul>
+    <p>
+      Explore the features and see how these technologies work together to
+      create a seamless experience!
     </p>
   </div>
 </template>
@@ -22,5 +31,16 @@ h2 {
 
 p {
   margin: 20px 0;
+  font-size: 18px;
+}
+
+ul {
+  margin: 20px 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+li {
+  font-size: 18px;
 }
 </style>
