@@ -1,4 +1,6 @@
 <script setup>
+import { reactive, ref, watch } from "vue";
+
 const props = defineProps({
   field: {
     type: Object,
@@ -6,55 +8,169 @@ const props = defineProps({
   },
   modelValue: {
     type: Object,
-    default: () => ({}),
+    default: () => ({
+      street: "",
+      lineTwo: "",
+      city: "",
+      state: "",
+      zip: "",
+      country: "US",
+    }),
   },
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const updateAddressPart = (inputId, value) => {
-  emit("update:modelValue", {
-    ...props.modelValue,
-    [inputId]: value,
-  });
+const addressValues = reactive({ ...props.modelValue });
+const errorMessage = ref("");
+
+const postalCodePatterns = {
+  US: /^\d{5}(-\d{4})?$/, // US ZIP code
+  CA: /^[A-Za-z]\d[A-Za-z] \d[A-Za-z]\d$/, // Canadian postal code
+  GB: /^([Gg][Ii][Rr] 0[Aa]{2}|[A-Za-z]{1,2}[0-9][0-9]?[A-Za-z]?[ ]?[0-9][A-Za-z]{2})$/, // UK postal code
+  AU: /^\d{4}$/, // Australian postal code
+  NZ: /^\d{4}$/, // New Zealand postal code
 };
+
+const validateAddress = () => {
+  const { street, city, state, zip, country } = addressValues;
+  const pattern = postalCodePatterns[country];
+
+  if (!street || !city || !state || !zip) {
+    errorMessage.value = "Please fill out all required fields.";
+  } else if (pattern && !pattern.test(zip)) {
+    errorMessage.value =
+      "Please enter a valid postal code for the selected country.";
+  } else {
+    errorMessage.value = ""; // Clear error message if valid
+  }
+
+  emit("update:modelValue", { ...addressValues }); // Emit updated address values
+};
+
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    Object.assign(addressValues, newValue); // Sync local ref with prop
+    validateAddress(); // Validate the new value
+  }
+);
 </script>
 
 <template>
-  <div class="field-wrapper">
-    <label class="block text-sm font-medium text-gray-700 mb-2">
-      {{ field.label }}
-      <span v-if="field.isRequired" class="text-red-500">*</span>
-    </label>
-    <div class="space-y-4">
-      <div
-        v-for="input in field.inputs"
-        :key="input.id"
-        :class="{
-          'col-span-2':
-            input.customLabel === 'Street Address' ||
-            input.customLabel === 'Address Line 2',
-          'col-span-1':
-            input.customLabel !== 'Street Address' &&
-            input.customLabel !== 'Address Line 2',
-        }"
-      >
-        <label
-          :for="`${field.databaseId}-${input.id}`"
-          class="block text-sm text-gray-600"
-        >
-          {{ input.customLabel || input.label }}
-        </label>
-        <input
-          :id="`${field.databaseId}-${input.id}`"
-          type="text"
-          :placeholder="input.placeholder"
-          :value="modelValue[input.id]"
-          @input="updateAddressPart(input.id, $event.target.value)"
-          :autocomplete="input.autocompleteAttribute"
-          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-        />
+  <div class="form-container">
+    <h1>Fran's Nuxt Headless WP Gravity Forms Questionnaire</h1>
+    <form @submit.prevent="handleSubmit" v-if="!pending">
+      <div class="field-wrapper">
+        <label>{{ field.label }}</label>
+        <div class="address-field-group">
+          <div class="full-width">
+            <input
+              v-model="addressValues.street"
+              placeholder="Street Address"
+              :required="field.isRequired"
+              @input="validateAddress"
+            />
+          </div>
+          <div class="full-width">
+            <input
+              v-model="addressValues.lineTwo"
+              placeholder="Address Line 2"
+            />
+          </div>
+          <div class="city-state-group">
+            <input
+              v-model="addressValues.city"
+              placeholder="City"
+              :required="field.isRequired"
+              @input="validateAddress"
+            />
+            <input
+              v-model="addressValues.state"
+              placeholder="State/Province"
+              :required="field.isRequired"
+              @input="validateAddress"
+            />
+          </div>
+          <div class="zip-country-group">
+            <input
+              v-model="addressValues.zip"
+              placeholder="ZIP/Postal Code"
+              :required="field.isRequired"
+              @input="validateAddress"
+            />
+            <select
+              v-model="addressValues.country"
+              :required="field.isRequired"
+              @change="validateAddress"
+            >
+              <option value="US">United States</option>
+              <option value="CA">Canada</option>
+              <option value="GB">United Kingdom</option>
+              <option value="AU">Australia</option>
+              <option value="NZ">New Zealand</option>
+            </select>
+          </div>
+        </div>
+        <p v-if="errorMessage" class="text-red-500 text-sm">
+          {{ errorMessage }}
+        </p>
       </div>
-    </div>
+    </form>
   </div>
 </template>
+
+<style scoped>
+.address-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.city-state-group,
+.zip-country-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.address-field-group input,
+.address-field-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  margin: 0; /* Remove default margins */
+}
+
+/* Add hover effect for better UX */
+.address-field-group input:hover,
+.address-field-group select:hover {
+  border-color: #b3b3b3;
+}
+
+/* Add focus effect */
+.address-field-group input:focus,
+.address-field-group select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center; /* Center text within the container */
+}
+
+h1 {
+  margin-bottom: 20px; /* Space below the heading */
+  font-size: 1.5rem; /* Adjusted font size to be smaller */
+  color: #333; /* Change color if needed */
+}
+</style>
