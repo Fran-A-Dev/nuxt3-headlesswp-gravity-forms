@@ -32,9 +32,14 @@ const addressLabels = {
   country: "Country",
 };
 
+// Get the fetch function for form ID 1
+const fetchFormData = fetchForm(1);
+
 onMounted(async () => {
   try {
-    const { data, error: fetchError } = await fetchForm(1);
+    pending.value = true;
+    // Execute the fetch function
+    const { data, error: fetchError } = await fetchFormData();
 
     if (fetchError?.value) {
       throw new Error(fetchError.value);
@@ -149,6 +154,8 @@ const handleSubmit = async () => {
 
       <button type="submit" :disabled="pending">Submit</button>
     </form>
+    <div v-else-if="error" class="text-red-500">Error: {{ error }}</div>
+    <div v-else>Loading form...</div>
   </div>
 </template>
 

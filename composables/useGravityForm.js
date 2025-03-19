@@ -1,5 +1,5 @@
-import { ref } from "vue";
-import { useRuntimeConfig } from "#app";
+import { ref, watch } from "vue";
+import { useRuntimeConfig, useFetch } from "#app";
 
 export default function useGravityForm() {
   const config = useRuntimeConfig();
@@ -132,63 +132,72 @@ export default function useGravityForm() {
     }
   `;
 
-  const fetchForm = async (formId) => {
+  const fetchForm = (formId) => {
     isLoading.value = true;
-    try {
-      // Log the request details
-      const requestBody = {
-        query: formQuery,
-        variables: { formId: formId.toString() },
-      };
 
-      console.log("Making GraphQL request:", {
-        url: config.public.wordpressUrl,
-        body: requestBody,
-      });
+    const requestBody = {
+      query: formQuery,
+      variables: { formId: formId.toString() },
+    };
 
-      const response = await fetch(config.public.wordpressUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      // Log the raw response
-      const rawResponse = await response.text();
-      console.log("Raw response:", rawResponse);
-
-      // Try to parse the response
-      let result;
-      try {
-        result = JSON.parse(rawResponse);
-      } catch (parseError) {
-        console.error("Failed to parse response:", parseError);
+    // Using useFetch with immediate: false
+    const {
+      data,
+      error: fetchError,
+      execute,
+    } = useFetch(config.public.wordpressUrl, {
+      key: `gravity-form-${formId}`,
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: requestBody,
+      immediate: false, // Don't fetch immediately
+      transform: (response) => {
+        // Transform the response to get the fields
+        const fields = response?.data?.gfForm?.formFields?.nodes;
+        if (!Array.isArray(fields)) {
+          throw new Error("Invalid form fields data");
+        }
+        return fields;
+      },
+      onResponseError({ response }) {
+        console.error("GraphQL Errors:", response._data?.errors);
         throw new Error(
-          `Invalid JSON response: ${rawResponse.substring(0, 100)}...`
+          response._data?.errors?.[0]?.message || "Failed to fetch form"
         );
-      }
+      },
+    });
 
-      if (result.errors) {
-        console.error("GraphQL Errors:", result.errors);
-        throw new Error(result.errors[0].message);
+    // Watch for changes in the fetch state
+    watch([data, fetchError], () => {
+      if (fetchError.value) {
+        error.value = fetchError.value;
+      } else if (data.value) {
+        formFields.value = data.value;
+        isLoading.value = false;
       }
+    });
 
-      const fields = result.data?.gfForm?.formFields?.nodes;
-      if (!Array.isArray(fields)) {
-        console.error("Invalid fields data:", result.data);
-        throw new Error("Invalid form fields data");
+    // Return a function to execute the fetch
+    const fetchAndProcess = async () => {
+      error.value = null;
+      isLoading.value = true;
+
+      try {
+        await execute();
+        return { data: ref(data.value), error: ref(null) };
+      } catch (err) {
+        console.error("Error fetching form:", err);
+        error.value = err.message;
+        return { data: ref([]), error: ref(err.message) };
+      } finally {
+        isLoading.value = false;
       }
+    };
 
-      formFields.value = fields;
-      return { data: ref(fields), error: ref(null) };
-    } catch (err) {
-      console.error("Error fetching form:", err);
-      return { data: ref([]), error: ref(err.message) };
-    } finally {
-      isLoading.value = false;
-    }
+    return fetchAndProcess;
   };
 
   const transformFieldValue = (field, value) => {

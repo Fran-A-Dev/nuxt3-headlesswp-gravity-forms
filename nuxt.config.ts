@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   modules: ["@nuxtjs/tailwindcss"],
   runtimeConfig: {
     public: {
-      wordpressUrl: process.env.WORDPRESS_URL,
+      wordpressUrl: "https://smartcache.wpenginepowered.com/graphql",
     },
   },
   routeRules: {
