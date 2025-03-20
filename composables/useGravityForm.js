@@ -1,14 +1,9 @@
-import { ref, watch } from "vue";
-import { useRuntimeConfig, useFetch } from "#app";
+import { ref } from "vue";
+import { useRuntimeConfig } from "#app";
 
 export default function useGravityForm() {
   const config = useRuntimeConfig();
   const formFields = ref([]);
-  const isLoading = ref(false);
-  const error = ref(null);
-
-  // Log the config when the composable is initialized
-  console.log("WordPress URL from config:", config.public.wordpressUrl);
 
   const formQuery = `
     query GetGravityForm($formId: ID!) {
@@ -132,91 +127,58 @@ export default function useGravityForm() {
     }
   `;
 
-  const fetchForm = (formId) => {
-    isLoading.value = true;
-
-    const requestBody = {
+  const fetchForm = () => {
+    console.log("WordPress URL from config:", config.public.wordpressUrl);
+    console.log("Making GraphQL request:", {
+      url: config.public.wordpressUrl,
       query: formQuery,
-      variables: { formId: formId.toString() },
-    };
-
-    // Using useFetch with immediate: false
-    const {
-      data,
-      error: fetchError,
-      execute,
-    } = useFetch(config.public.wordpressUrl, {
-      key: `gravity-form-${formId}`,
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: requestBody,
-      immediate: false, // Don't fetch immediately
-      transform: (response) => {
-        // Transform the response to get the fields
-        const fields = response?.data?.gfForm?.formFields?.nodes;
-        if (!Array.isArray(fields)) {
-          throw new Error("Invalid form fields data");
-        }
-        return fields;
-      },
-      onResponseError({ response }) {
-        console.error("GraphQL Errors:", response._data?.errors);
-        throw new Error(
-          response._data?.errors?.[0]?.message || "Failed to fetch form"
-        );
-      },
     });
 
-    // Watch for changes in the fetch state
-    watch([data, fetchError], () => {
-      if (fetchError.value) {
-        error.value = fetchError.value;
-      } else if (data.value) {
-        formFields.value = data.value;
-        isLoading.value = false;
+    const { data, status, error, execute, refresh } = useFetch(
+      config.public.wordpressUrl,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          query: formQuery,
+          variables: { formId: "1" }, // Default formId (you can change this logic later)
+        }),
+        immediate: false, // Prevent automatic execution
+        transform: (res) => {
+          if (res.errors) {
+            console.error("GraphQL Errors:", res.errors);
+            throw new Error(res.errors[0].message);
+          }
+          const fields = res.data?.gfForm?.formFields?.nodes;
+          if (!Array.isArray(fields)) {
+            console.error("Invalid fields data:", res.data);
+            throw new Error("Invalid form fields data");
+          }
+          return fields;
+        },
       }
-    });
+    );
 
-    // Return a function to execute the fetch
-    const fetchAndProcess = async () => {
-      error.value = null;
-      isLoading.value = true;
-
-      try {
-        await execute();
-        return { data: ref(data.value), error: ref(null) };
-      } catch (err) {
-        console.error("Error fetching form:", err);
-        error.value = err.message;
-        return { data: ref([]), error: ref(err.message) };
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
-    return fetchAndProcess;
+    // Return execute to manually trigger the fetch later
+    return { data, status, error, execute, refresh };
   };
 
   const transformFieldValue = (field, value) => {
     if (!field) return null;
-
     const fieldId = parseInt(field.databaseId, 10);
-
     switch (field.type) {
       case "CHECKBOX":
         if (!Array.isArray(value) || !value.length) return null;
-
         return {
           id: fieldId,
           checkboxValues: value.map((val, index) => ({
-            inputId: parseFloat(`${fieldId}.${index + 1}`), // Convert to number: 8.1, 8.2, etc.
+            inputId: parseFloat(`${fieldId}.${index + 1}`),
             value: val,
           })),
         };
-
       case "ADDRESS":
         return {
           id: fieldId,
@@ -229,7 +191,6 @@ export default function useGravityForm() {
             country: value?.country || "US",
           },
         };
-
       case "EMAIL":
         return {
           id: fieldId,
@@ -238,7 +199,6 @@ export default function useGravityForm() {
             confirmationValue: value || "",
           },
         };
-
       case "NAME":
         return {
           id: fieldId,
@@ -250,7 +210,6 @@ export default function useGravityForm() {
             suffix: value?.suffix || "",
           },
         };
-
       case "MULTISELECT":
       case "POST_CATEGORY":
       case "POST_CUSTOM":
@@ -259,7 +218,6 @@ export default function useGravityForm() {
           id: fieldId,
           values: Array.isArray(value) ? value : [],
         };
-
       default:
         return {
           id: fieldId,
@@ -271,7 +229,6 @@ export default function useGravityForm() {
   const submitForm = async (formId, fieldValues) => {
     try {
       console.log("Submitting form values:", fieldValues);
-
       const transformedValues = Object.entries(fieldValues)
         .map(([id, value]) => {
           const field = formFields.value.find(
@@ -340,5 +297,5 @@ export default function useGravityForm() {
     }
   };
 
-  return { formFields, isLoading, error, fetchForm, submitForm };
+  return { formFields, fetchForm, submitForm };
 }
