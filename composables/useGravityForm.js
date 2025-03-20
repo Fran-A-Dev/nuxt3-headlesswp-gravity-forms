@@ -128,13 +128,12 @@ export default function useGravityForm() {
   `;
 
   const fetchForm = () => {
-    console.log("WordPress URL from config:", config.public.wordpressUrl);
     console.log("Making GraphQL request:", {
       url: config.public.wordpressUrl,
       query: formQuery,
     });
 
-    const { data, status, error, execute, refresh } = useFetch(
+    const { data, status, fetchError, execute, refresh } = useFetch(
       config.public.wordpressUrl,
       {
         method: "POST",
@@ -163,7 +162,7 @@ export default function useGravityForm() {
     );
 
     // Return execute to manually trigger the fetch later
-    return { data, status, error, execute, refresh };
+    return { data, status, fetchError, execute, refresh };
   };
 
   const transformFieldValue = (field, value) => {
@@ -228,7 +227,6 @@ export default function useGravityForm() {
 
   const submitForm = async (formId, fieldValues) => {
     try {
-      console.log("Submitting form values:", fieldValues);
       const transformedValues = Object.entries(fieldValues)
         .map(([id, value]) => {
           const field = formFields.value.find(
@@ -241,8 +239,6 @@ export default function useGravityForm() {
           return transformFieldValue(field, value);
         })
         .filter(Boolean);
-
-      console.log("Transformed values:", transformedValues);
 
       const mutation = `
         mutation SubmitForm($formId: ID!, $fieldValues: [FormFieldValuesInput!]!) {
@@ -284,7 +280,6 @@ export default function useGravityForm() {
       });
 
       const result = await response.json();
-      console.log("Submission response:", result);
 
       if (result.errors) {
         throw new Error(result.errors.map((e) => e.message).join(", "));

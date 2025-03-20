@@ -13,12 +13,10 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 const handleChange = (choiceValue, checked) => {
-  console.log("Checkbox change:", { choiceValue, checked });
   const currentValues = Array.isArray(props.modelValue) ? props.modelValue : [];
   const newValues = checked
     ? [...currentValues, choiceValue]
     : currentValues.filter((v) => v !== choiceValue);
-  console.log("New checkbox values:", newValues);
   emit("update:modelValue", newValues);
 };
 </script>

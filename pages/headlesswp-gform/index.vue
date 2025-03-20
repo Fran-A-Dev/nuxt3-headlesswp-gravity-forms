@@ -1,15 +1,23 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from "vue";
 import useGravityForm from "~/composables/useGravityForm";
-import { useFormFields } from "~/composables/useFormFields";
+import TextField from "~/components/form-fields/TextField.vue";
+import EmailField from "~/components/form-fields/EmailField.vue";
+import TextAreaField from "~/components/form-fields/TextAreaField.vue";
+import SelectField from "~/components/form-fields/SelectField.vue";
+import MultiSelectField from "~/components/form-fields/MultiSelectField.vue";
+import AddressField from "~/components/form-fields/AddressField.vue";
+import CheckboxField from "~/components/form-fields/CheckboxField.vue";
+import DateField from "~/components/form-fields/DateField.vue";
+import TimeField from "~/components/form-fields/TimeField.vue";
+import NameField from "~/components/form-fields/NameField.vue";
+import WebsiteField from "~/components/form-fields/WebsiteField.vue";
 
 // Bring in your composables
 const { fetchForm, submitForm, formFields } = useGravityForm();
-const { resolveFieldComponent } = useFormFields();
 
-// Use reactive for deep reactivity (for nested objects)
-const formValues = reactive({});
-const error = ref(null);
+// Use ref for form values
+const formValues = ref({});
 
 // Validation error storage
 const validationErrors = reactive({
@@ -22,22 +30,6 @@ const validationErrors = reactive({
   },
   email: null,
 });
-
-// Helper function to map input.id to the correct name key (prefix, first, etc.)
-const getNameKey = (inputId) => {
-  const idString = String(inputId);
-  const parts = idString.split(".");
-  if (parts.length < 2) return "";
-  const part = parts[1];
-  const map = {
-    2: "prefix",
-    3: "first",
-    4: "middle",
-    6: "last",
-    8: "suffix",
-  };
-  return map[part] || "";
-};
 
 // Validate the entire address object and update errors per field.
 const validateAddress = (address) => {
@@ -86,17 +78,26 @@ const validateEmail = (email) => {
   return true;
 };
 
+// Handle field value updates
+const updateFieldValue = (fieldId, value) => {
+  formValues.value = {
+    ...formValues.value,
+    [fieldId]: value,
+  };
+};
+
 onMounted(() => {
-  const { data, pending, error: fetchError, execute } = fetchForm();
+  const { data, error: fetchError, execute } = fetchForm();
   execute();
 
   watch(data, (newData) => {
     if (newData && Array.isArray(newData)) {
       formFields.value = newData;
+      const initialValues = {};
       newData.forEach((field) => {
         switch (field.type) {
           case "ADDRESS":
-            formValues[field.databaseId] = {
+            initialValues[field.databaseId] = {
               street: "",
               lineTwo: "",
               city: "",
@@ -107,10 +108,10 @@ onMounted(() => {
             break;
           case "CHECKBOX":
           case "MULTISELECT":
-            formValues[field.databaseId] = [];
+            initialValues[field.databaseId] = [];
             break;
           case "NAME":
-            formValues[field.databaseId] = {
+            initialValues[field.databaseId] = {
               prefix: "",
               first: "",
               middle: "",
@@ -119,9 +120,10 @@ onMounted(() => {
             };
             break;
           default:
-            formValues[field.databaseId] = "";
+            initialValues[field.databaseId] = "";
         }
       });
+      formValues.value = initialValues;
     }
   });
 
@@ -130,10 +132,6 @@ onMounted(() => {
       error.value = err.message;
     }
   });
-
-  watch(pending, (val) => {
-    console.log("Pending status:", val);
-  });
 });
 
 const handleSubmit = async () => {
@@ -141,8 +139,8 @@ const handleSubmit = async () => {
 
   // Validate email field before submission
   const emailField = formFields.value.find((field) => field.type === "EMAIL");
-  if (emailField && formValues[emailField.databaseId]) {
-    if (!validateEmail(formValues[emailField.databaseId])) {
+  if (emailField && formValues.value[emailField.databaseId]) {
+    if (!validateEmail(formValues.value[emailField.databaseId])) {
       isValid = false;
     }
   }
@@ -151,8 +149,8 @@ const handleSubmit = async () => {
   const addressField = formFields.value.find(
     (field) => field.type === "ADDRESS"
   );
-  if (addressField && formValues[addressField.databaseId]) {
-    if (!validateAddress(formValues[addressField.databaseId])) {
+  if (addressField && formValues.value[addressField.databaseId]) {
+    if (!validateAddress(formValues.value[addressField.databaseId])) {
       isValid = false;
     }
   }
@@ -163,7 +161,7 @@ const handleSubmit = async () => {
   }
 
   try {
-    const response = await submitForm(1, formValues);
+    const response = await submitForm(1, formValues.value);
     if (response?.errors?.length > 0) {
       throw new Error(response.errors[0].message);
     }
@@ -172,11 +170,13 @@ const handleSubmit = async () => {
       temp.innerHTML = response.confirmation.message;
       const cleanMessage = temp.textContent || temp.innerText;
       alert(cleanMessage);
+
       // Reset fields after submission
+      const resetValues = {};
       formFields.value.forEach((field) => {
         switch (field.type) {
           case "ADDRESS":
-            formValues[field.databaseId] = {
+            resetValues[field.databaseId] = {
               street: "",
               lineTwo: "",
               city: "",
@@ -187,10 +187,10 @@ const handleSubmit = async () => {
             break;
           case "CHECKBOX":
           case "MULTISELECT":
-            formValues[field.databaseId] = [];
+            resetValues[field.databaseId] = [];
             break;
           case "NAME":
-            formValues[field.databaseId] = {
+            resetValues[field.databaseId] = {
               prefix: "",
               first: "",
               middle: "",
@@ -199,13 +199,29 @@ const handleSubmit = async () => {
             };
             break;
           default:
-            formValues[field.databaseId] = "";
+            resetValues[field.databaseId] = "";
         }
       });
+      formValues.value = resetValues;
     }
   } catch (err) {
     alert(`Error submitting form: ${err.message}`);
   }
+};
+
+// Map field types to components
+const fieldComponents = {
+  TEXT: TextField,
+  EMAIL: EmailField,
+  TEXTAREA: TextAreaField,
+  SELECT: SelectField,
+  MULTISELECT: MultiSelectField,
+  ADDRESS: AddressField,
+  CHECKBOX: CheckboxField,
+  DATE: DateField,
+  TIME: TimeField,
+  NAME: NameField,
+  WEBSITE: WebsiteField,
 };
 </script>
 
@@ -220,213 +236,17 @@ const handleSubmit = async () => {
     </div>
     <form v-else @submit.prevent="handleSubmit">
       <div v-for="field in formFields" :key="field.databaseId" class="mb-4">
-        <!-- TEXT Field -->
-        <div v-if="field.type === 'TEXT'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="text"
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || ''"
-            :maxlength="field.maxLength || undefined"
-            :required="field.isRequired"
-            class="form-input"
-          />
-        </div>
-
-        <!-- EMAIL Field with onBlur Validation -->
-        <div v-else-if="field.type === 'EMAIL'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="email"
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || ''"
-            :required="field.isRequired"
-            class="form-input"
-            @blur="() => validateEmail(formValues[field.databaseId])"
-          />
-          <div v-if="validationErrors.email" class="text-red-600 text-sm">
-            {{ validationErrors.email }}
-          </div>
-        </div>
-
-        <!-- TEXTAREA Field -->
-        <div v-else-if="field.type === 'TEXTAREA'" class="form-group">
-          <label>{{ field.label }}</label>
-          <textarea
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || ''"
-            class="form-input"
-          ></textarea>
-        </div>
-
-        <!-- SELECT Field -->
-        <div v-else-if="field.type === 'SELECT'" class="form-group">
-          <label>{{ field.label }}</label>
-          <select v-model="formValues[field.databaseId]" class="form-input">
-            <option value="">Select an option</option>
-            <option
-              v-for="choice in field.choices"
-              :key="choice.value"
-              :value="choice.value"
-            >
-              {{ choice.text }}
-            </option>
-          </select>
-        </div>
-
-        <!-- MULTISELECT Field -->
-        <div v-else-if="field.type === 'MULTISELECT'" class="form-group">
-          <label>{{ field.label }}</label>
-          <select
-            v-model="formValues[field.databaseId]"
-            multiple
-            class="form-input"
-          >
-            <option value="">Select one or more options</option>
-            <option
-              v-for="choice in field.choices"
-              :key="choice.value"
-              :value="choice.value"
-            >
-              {{ choice.text }}
-            </option>
-          </select>
-        </div>
-
-        <!-- ADDRESS Field with onBlur Validation -->
-        <div v-else-if="field.type === 'ADDRESS'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div class="space-y-2">
-            <div
-              v-for="(label, key) in {
-                street: 'Street',
-                city: 'City',
-                state: 'State',
-                zip: 'ZIP',
-                country: 'Country',
-              }"
-              :key="key"
-              class="mb-2"
-            >
-              <label class="text-sm text-gray-600">{{ label }}</label>
-              <template v-if="key !== 'country'">
-                <input
-                  type="text"
-                  v-model="formValues[field.databaseId][key]"
-                  :placeholder="label"
-                  class="form-input"
-                  @blur="() => validateAddress(formValues[field.databaseId])"
-                />
-              </template>
-              <template v-else>
-                <select
-                  v-model="formValues[field.databaseId][key]"
-                  class="form-input"
-                  @blur="() => validateAddress(formValues[field.databaseId])"
-                >
-                  <option value="US">United States</option>
-                  <option value="CA">Canada</option>
-                  <option value="GB">United Kingdom</option>
-                  <option value="AU">Australia</option>
-                  <option value="NZ">New Zealand</option>
-                </select>
-              </template>
-            </div>
-            <div
-              v-if="validationErrors.address.street"
-              class="text-red-600 text-sm"
-            >
-              {{ validationErrors.address.street }}
-            </div>
-            <div
-              v-if="validationErrors.address.city"
-              class="text-red-600 text-sm"
-            >
-              {{ validationErrors.address.city }}
-            </div>
-            <div
-              v-if="validationErrors.address.state"
-              class="text-red-600 text-sm"
-            >
-              {{ validationErrors.address.state }}
-            </div>
-            <div
-              v-if="validationErrors.address.zip"
-              class="text-red-600 text-sm"
-            >
-              {{ validationErrors.address.zip }}
-            </div>
-            <div
-              v-if="validationErrors.address.country"
-              class="text-red-600 text-sm"
-            >
-              {{ validationErrors.address.country }}
-            </div>
-          </div>
-        </div>
-
-        <!-- CHECKBOX Field -->
-        <div v-else-if="field.type === 'CHECKBOX'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div v-for="choice in field.choices" :key="choice.value">
-            <label>
-              <input
-                type="checkbox"
-                :value="choice.value"
-                v-model="formValues[field.databaseId]"
-              />
-              {{ choice.text }}
-            </label>
-          </div>
-        </div>
-
-        <!-- DATE Field -->
-        <div v-else-if="field.type === 'DATE'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="date"
-            v-model="formValues[field.databaseId]"
-            class="form-input"
-          />
-        </div>
-
-        <!-- TIME Field -->
-        <div v-else-if="field.type === 'TIME'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="time"
-            v-model="formValues[field.databaseId]"
-            class="form-input"
-          />
-        </div>
-
-        <!-- NAME Field -->
-        <div v-else-if="field.type === 'NAME'" class="form-group">
-          <label>{{ field.label }}</label>
-          <div class="space-y-2">
-            <template v-if="field.inputs">
-              <input
-                v-for="input in field.inputs"
-                :key="input.id"
-                type="text"
-                v-model="formValues[field.databaseId][getNameKey(input.id)]"
-                :placeholder="input.label"
-                class="form-input"
-              />
-            </template>
-          </div>
-        </div>
-
-        <!-- WEBSITE Field -->
-        <div v-else-if="field.type === 'WEBSITE'" class="form-group">
-          <label>{{ field.label }}</label>
-          <input
-            type="url"
-            v-model="formValues[field.databaseId]"
-            :placeholder="field.placeholder || 'https://example.com'"
-            class="form-input"
-          />
-        </div>
+        <component
+          :is="fieldComponents[field.type]"
+          :field="field"
+          :model-value="formValues[field.databaseId]"
+          @update:model-value="
+            (newValue) => updateFieldValue(field.databaseId, newValue)
+          "
+          :validation-errors="validationErrors"
+          :validate-email="validateEmail"
+          :validate-address="validateAddress"
+        />
       </div>
 
       <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">
@@ -448,6 +268,4 @@ const handleSubmit = async () => {
 label {
   @apply block mb-1 font-medium;
 }
-
-/* Removed any custom .text-red-600 rules to avoid circular dependency */
 </style>

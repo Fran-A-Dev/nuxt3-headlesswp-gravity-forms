@@ -24,17 +24,6 @@ export const useFormFields = () => {
 
     const componentName = typeToComponent[type];
 
-    // Only log each type once
-    if (!loggedTypes.has(type)) {
-      console.log(
-        "Resolving field type:",
-        type,
-        "to component:",
-        componentName
-      );
-      loggedTypes.add(type);
-    }
-
     return componentName
       ? defineAsyncComponent(() =>
           import(`~/components/form-fields/${componentName}.vue`)

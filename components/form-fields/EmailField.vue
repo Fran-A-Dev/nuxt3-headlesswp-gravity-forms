@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { ref } from "vue";
 
 const props = defineProps({
   field: {
@@ -13,13 +13,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue"]);
-
-const email = ref(props.modelValue);
 const errorMessage = ref("");
 
 const handleInput = (e) => {
   const value = e.target.value;
-  email.value = value;
   emit("update:modelValue", value);
   validateEmail(value);
 };
@@ -32,15 +29,6 @@ const validateEmail = (email) => {
     errorMessage.value = ""; // Clear error message if valid
   }
 };
-
-// Watch for changes in modelValue to sync with the local ref
-watch(
-  () => props.modelValue,
-  (newValue) => {
-    email.value = newValue;
-    validateEmail(newValue);
-  }
-);
 </script>
 
 <template>
@@ -57,7 +45,7 @@ watch(
       type="email"
       :placeholder="field.placeholder"
       :required="field.isRequired"
-      v-model="email"
+      :value="modelValue"
       @input="handleInput"
       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
     />
