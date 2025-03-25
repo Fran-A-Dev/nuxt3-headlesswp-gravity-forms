@@ -1,6 +1,5 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from "vue";
-import useGravityForm from "~/composables/useGravityForm";
 import TextField from "~/components/form-fields/TextField.vue";
 import EmailField from "~/components/form-fields/EmailField.vue";
 import TextAreaField from "~/components/form-fields/TextAreaField.vue";
