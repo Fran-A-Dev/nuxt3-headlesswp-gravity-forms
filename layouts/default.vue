@@ -7,7 +7,7 @@
           <li><NuxtLink to="/">Home</NuxtLink></li>
           <li><NuxtLink to="/wpblog">blog</NuxtLink></li>
 
-          <li><NuxtLink to="/headlesswp-gform">Questionnaire</NuxtLink></li>
+          <li><NuxtLink to="/questionnaire">Questionnaire</NuxtLink></li>
           <li><NuxtLink to="/products" class="btn">products</NuxtLink></li>
         </ul>
       </nav>
