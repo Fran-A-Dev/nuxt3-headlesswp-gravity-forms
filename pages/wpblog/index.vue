@@ -1,5 +1,7 @@
 <script setup>
 import { ref } from "vue";
+import Post from "~/components/wp/Post.vue";
+import TheHeader from "~/components/wp/TheHeader.vue";
 
 const config = useRuntimeConfig();
 const error = ref(null);

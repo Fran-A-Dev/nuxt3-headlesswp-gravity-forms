@@ -5,7 +5,15 @@ export default defineNuxtConfig({
   modules: ["@nuxtjs/tailwindcss"],
   runtimeConfig: {
     public: {
-      wordpressUrl: process.env.WORDPRESS_URL,
+      wordpressUrl: "",
     },
+  },
+  routeRules: {
+    // Blog listing page - revalidates every 60 seconds
+    "/wpblog": { isr: 60 },
+    // Individual blog posts - cached until next deployment
+    "/wpblog/**": { isr: true },
+    // Pre-render the form page at build time
+    "/headlesswp-gform": { prerender: true },
   },
 });
