@@ -1,24 +1,25 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from "vue";
-import TextField from "~/components/form-fields/TextField.vue";
-import EmailField from "~/components/form-fields/EmailField.vue";
-import TextAreaField from "~/components/form-fields/TextAreaField.vue";
-import SelectField from "~/components/form-fields/SelectField.vue";
-import MultiSelectField from "~/components/form-fields/MultiSelectField.vue";
-import AddressField from "~/components/form-fields/AddressField.vue";
-import CheckboxField from "~/components/form-fields/CheckboxField.vue";
-import DateField from "~/components/form-fields/DateField.vue";
-import TimeField from "~/components/form-fields/TimeField.vue";
-import NameField from "~/components/form-fields/NameField.vue";
-import WebsiteField from "~/components/form-fields/WebsiteField.vue";
 
-// Bring in your composables
+import {
+  InputField,
+  DropdownField,
+  ChoiceListField,
+  AddressField,
+  DateField,
+  TimeField,
+  NameField,
+  PhoneField,
+} from "~/components/form-fields";
+
+import EmailFieldComponent from "~/components/form-fields/EmailField.vue";
+
+import useGravityForm from "~/composables/useGravityForm";
 const { fetchForm, submitForm, formFields } = useGravityForm();
 
-// Use ref for form values
 const formValues = ref({});
+const error = ref(null);
 
-// Validation error storage
 const validationErrors = reactive({
   address: {
     street: null,
@@ -208,19 +209,21 @@ const handleSubmit = async () => {
   }
 };
 
-// Map field types to components
+// Map field types to components using barrel file imports.
 const fieldComponents = {
-  TEXT: TextField,
-  EMAIL: EmailField,
-  TEXTAREA: TextAreaField,
-  SELECT: SelectField,
-  MULTISELECT: MultiSelectField,
+  TEXT: InputField,
+  EMAIL: EmailFieldComponent,
+  TEXTAREA: InputField,
+  SELECT: DropdownField,
+  MULTISELECT: DropdownField,
+  CHECKBOX: ChoiceListField,
+  RADIO: ChoiceListField,
   ADDRESS: AddressField,
-  CHECKBOX: CheckboxField,
   DATE: DateField,
   TIME: TimeField,
   NAME: NameField,
-  WEBSITE: WebsiteField,
+  WEBSITE: InputField,
+  PHONE: PhoneField,
 };
 </script>
 
@@ -257,14 +260,19 @@ const fieldComponents = {
 
 <style scoped>
 .form-group {
-  @apply mb-4;
+  margin-bottom: 1rem;
 }
 
 .form-input {
-  @apply w-full p-2 border border-gray-300 rounded;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
 }
 
 label {
-  @apply block mb-1 font-medium;
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 500;
 }
 </style>

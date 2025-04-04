@@ -6,125 +6,66 @@ export default function useGravityForm() {
   const formFields = ref([]);
 
   const formQuery = `
-    query GetGravityForm($formId: ID!) {
-      gfForm(id: $formId, idType: DATABASE_ID) {
-        formFields(first: 300) {
-          nodes {
-            ... on AddressField {
-              databaseId
-              type
-              label
-              isRequired
-              inputs {
-                id
-                label
-                placeholder
-              }
-            }
-            ... on TextField {
-              databaseId
-              type
-              label
-              isRequired
-              placeholder
-              maxLength
-              description
-            }
-            ... on TextAreaField {
-              databaseId
-              type
-              label
-              isRequired
-              placeholder
-            }
-            ... on EmailField {
-              databaseId
-              type
-              label
-              isRequired
-              placeholder
-            }
-            ... on NameField {
-              databaseId
-              type
-              label
-              isRequired
-              inputs {
-                id
-                label
-                placeholder
-              }
-            }
-            ... on PhoneField {
-              databaseId
-              type
-              label
-              isRequired
-              placeholder
-            }
-            ... on SelectField {
-              databaseId
-              type
-              label
-              isRequired
-              choices {
-                text
-                value
-              }
-            }
-            ... on MultiSelectField {
-              databaseId
-              type
-              label
-              isRequired
-              choices {
-                text
-                value
-              }
-            }
-            ... on CheckboxField {
-              databaseId
-              type
-              label
-              isRequired
-              choices {
-                text
-                value
-              }
-            }
-            ... on RadioField {
-              databaseId
-              type
-              label
-              isRequired
-              choices {
-                text
-                value
-              }
-            }
-            ... on DateField {
-              databaseId
-              type
-              label
-              isRequired
-            }
-            ... on TimeField {
-              databaseId
-              type
-              label
-              isRequired
-            }
-            ... on WebsiteField {
-              databaseId
-              type
-              label
-              isRequired
-              placeholder
+  query GetGravityForm($formId: ID!) {
+  gfForm(id: $formId, idType: DATABASE_ID) {
+    formFields(first: 300) {
+      nodes {
+        id
+        databaseId
+        inputType
+        type
+        visibility
+        ... on GfFieldWithLabelSetting {
+          label
+        }
+        ... on GfFieldWithRulesSetting {
+          isRequired
+        }
+        ... on GfFieldWithCssClassSetting {
+          cssClass
+        }
+        ... on GfFieldWithDefaultValueSetting {
+          defaultValue
+        }
+        ... on GfFieldWithSizeSetting {
+          size
+        }
+        ... on GfFieldWithPlaceholderSetting {
+          placeholder
+        }
+        ... on GfFieldWithMaxLengthSetting {
+          maxLength
+        }
+        ... on GfFieldWithInputMaskSetting {
+          inputMaskValue
+        }
+        ... on GfFieldWithChoicesSetting {
+          choices {
+            text
+            value
+          }
+          inputs {
+            id
+            label
+          }
+        }
+        ... on GfFieldWithConditionalLogicSetting {
+          conditionalLogic {
+            actionType
+            logicType
+            rules {
+              fieldId
+              operator
+              value
             }
           }
         }
       }
     }
+  }
+}
+
+
   `;
 
   const fetchForm = () => {
@@ -143,9 +84,9 @@ export default function useGravityForm() {
         },
         body: JSON.stringify({
           query: formQuery,
-          variables: { formId: "1" }, // Default formId (you can change this logic later)
+          variables: { formId: "1" },
         }),
-        immediate: false, // Prevent automatic execution
+        immediate: false,
         transform: (res) => {
           if (res.errors) {
             console.error("GraphQL Errors:", res.errors);
@@ -161,7 +102,6 @@ export default function useGravityForm() {
       }
     );
 
-    // Return execute to manually trigger the fetch later
     return { data, status, fetchError, execute, refresh };
   };
 

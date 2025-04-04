@@ -1,29 +1,44 @@
-import { ref } from "vue";
 import { defineAsyncComponent } from "vue";
 
 export const useFormFields = () => {
-  // Keep track of logged types
   const loggedTypes = new Set();
 
-  const resolveFieldComponent = (type) => {
+  /**
+   * Resolves the Vue component for a given field based on its inputType.
+   * If inputType is not present, falls back to using type.
+   *
+   * @param {Object} field - The Gravity Form field object.
+   * @returns {Component|null} The async Vue component for this field.
+   */
+  const resolveFieldComponent = (field) => {
+    const fieldType = field.inputType
+      ? field.inputType.toUpperCase()
+      : field.type.toUpperCase();
+
     const typeToComponent = {
-      TEXT: "TextField",
+      ADDRESS: "AddressField",
+      TEXT: "InputField",
+      TEXTAREA: "InputField",
       EMAIL: "EmailField",
-      TEXTAREA: "TextAreaField",
-      SELECT: "SelectField",
-      RADIO: "RadioField",
-      CHECKBOX: "CheckboxField",
+      NAME: "NameField",
+      PHONE: "PhoneField",
+      SELECT: "DropdownField",
+      MULTISELECT: "DropdownField",
+      CHECKBOX: "ChoiceListField",
+      RADIO: "ChoiceListField",
       DATE: "DateField",
       TIME: "TimeField",
-      PHONE: "PhoneField",
-      NAME: "NameField",
-      ADDRESS: "AddressField",
-      WEBSITE: "WebsiteField",
-      MULTISELECT: "MultiSelectField",
+      WEBSITE: "InputField",
+      // Add any additional mappings if needed.
     };
 
-    const componentName = typeToComponent[type];
+    // Log the field type for debugging on the first occurrence.
+    if (!loggedTypes.has(fieldType)) {
+      console.log("Mapping field type:", fieldType);
+      loggedTypes.add(fieldType);
+    }
 
+    const componentName = typeToComponent[fieldType];
     return componentName
       ? defineAsyncComponent(() =>
           import(`~/components/form-fields/${componentName}.vue`)
