@@ -1,25 +1,18 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from "vue";
 
-import {
-  InputField,
-  DropdownField,
-  ChoiceListField,
-  AddressField,
-  DateField,
-  TimeField,
-  NameField,
-  PhoneField,
-} from "~/components/form-fields";
+// Import dynamic mapping function from the composable.
+import { useFormFields } from "~/composables/useFormFields";
+const { resolveFieldComponent } = useFormFields();
 
-import EmailFieldComponent from "~/components/form-fields/EmailField.vue";
-
+// Import other dependencies and composables.
 import useGravityForm from "~/composables/useGravityForm";
 const { fetchForm, submitForm, formFields } = useGravityForm();
 
 const formValues = ref({});
 const error = ref(null);
 
+// Validation error storage
 const validationErrors = reactive({
   address: {
     street: null,
@@ -31,7 +24,6 @@ const validationErrors = reactive({
   email: null,
 });
 
-// Validate the entire address object and update errors per field.
 const validateAddress = (address) => {
   let valid = true;
   if (!address.street) {
@@ -67,7 +59,6 @@ const validateAddress = (address) => {
   return valid;
 };
 
-// Validate the email value and update the error.
 const validateEmail = (email) => {
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   if (!emailRegex.test(email)) {
@@ -78,24 +69,15 @@ const validateEmail = (email) => {
   return true;
 };
 
-// Handle field value updates
-const updateFieldValue = (fieldId, value) => {
-  formValues.value = {
-    ...formValues.value,
-    [fieldId]: value,
-  };
-};
-
 onMounted(() => {
   const { data, error: fetchError, execute } = fetchForm();
   execute();
-
   watch(data, (newData) => {
     if (newData && Array.isArray(newData)) {
       formFields.value = newData;
       const initialValues = {};
       newData.forEach((field) => {
-        switch (field.type) {
+        switch (field.type.toUpperCase()) {
           case "ADDRESS":
             initialValues[field.databaseId] = {
               street: "",
@@ -126,7 +108,6 @@ onMounted(() => {
       formValues.value = initialValues;
     }
   });
-
   watch(fetchError, (err) => {
     if (err) {
       error.value = err.message;
@@ -136,30 +117,26 @@ onMounted(() => {
 
 const handleSubmit = async () => {
   let isValid = true;
-
-  // Validate email field before submission
-  const emailField = formFields.value.find((field) => field.type === "EMAIL");
+  const emailField = formFields.value.find(
+    (field) => field.type.toUpperCase() === "EMAIL"
+  );
   if (emailField && formValues.value[emailField.databaseId]) {
     if (!validateEmail(formValues.value[emailField.databaseId])) {
       isValid = false;
     }
   }
-
-  // Validate address field before submission
   const addressField = formFields.value.find(
-    (field) => field.type === "ADDRESS"
+    (field) => field.type.toUpperCase() === "ADDRESS"
   );
   if (addressField && formValues.value[addressField.databaseId]) {
     if (!validateAddress(formValues.value[addressField.databaseId])) {
       isValid = false;
     }
   }
-
   if (!isValid) {
     alert("Please fix the errors before submitting.");
     return;
   }
-
   try {
     const response = await submitForm(1, formValues.value);
     if (response?.errors?.length > 0) {
@@ -170,11 +147,9 @@ const handleSubmit = async () => {
       temp.innerHTML = response.confirmation.message;
       const cleanMessage = temp.textContent || temp.innerText;
       alert(cleanMessage);
-
-      // Reset fields after submission
       const resetValues = {};
       formFields.value.forEach((field) => {
-        switch (field.type) {
+        switch (field.type.toUpperCase()) {
           case "ADDRESS":
             resetValues[field.databaseId] = {
               street: "",
@@ -208,28 +183,10 @@ const handleSubmit = async () => {
     alert(`Error submitting form: ${err.message}`);
   }
 };
-
-// Map field types to components using barrel file imports.
-const fieldComponents = {
-  TEXT: InputField,
-  EMAIL: EmailFieldComponent,
-  TEXTAREA: InputField,
-  SELECT: DropdownField,
-  MULTISELECT: DropdownField,
-  CHECKBOX: ChoiceListField,
-  RADIO: ChoiceListField,
-  ADDRESS: AddressField,
-  DATE: DateField,
-  TIME: TimeField,
-  NAME: NameField,
-  WEBSITE: InputField,
-  PHONE: PhoneField,
-};
 </script>
 
 <template>
   <div class="p-4">
-    <!-- Global error message -->
     <div v-if="error">
       <p class="text-red-600">Error: {{ error }}</p>
     </div>
@@ -239,18 +196,11 @@ const fieldComponents = {
     <form v-else @submit.prevent="handleSubmit">
       <div v-for="field in formFields" :key="field.databaseId" class="mb-4">
         <component
-          :is="fieldComponents[field.type]"
+          :is="resolveFieldComponent(field)"
           :field="field"
-          :model-value="formValues[field.databaseId]"
-          @update:model-value="
-            (newValue) => updateFieldValue(field.databaseId, newValue)
-          "
-          :validation-errors="validationErrors"
-          :validate-email="validateEmail"
-          :validate-address="validateAddress"
+          v-model="formValues[field.databaseId]"
         />
       </div>
-
       <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">
         Submit
       </button>
@@ -259,7 +209,7 @@ const fieldComponents = {
 </template>
 
 <style scoped>
-.form-group {
+.field-wrapper {
   margin-bottom: 1rem;
 }
 

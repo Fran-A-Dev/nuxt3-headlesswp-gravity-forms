@@ -1,7 +1,7 @@
-export { default as InputField } from "./InputField.vue";
-export { default as EmailField } from "./EmailField.vue";
-export { default as DropdownField } from "./DropdownField.vue";
-export { default as ChoiceListField } from "./ChoiceListField.vue";
+// components/form-fields/index.js
+export { default as InputField } from "./InputField.vue"; // Used for TEXT, EMAIL, TEXTAREA, WEBSITE
+export { default as DropdownField } from "./DropdownField.vue"; // Used for SELECT and MULTISELECT
+export { default as ChoiceListField } from "./ChoiceListField.vue"; // Used for CHECKBOX and RADIO
 export { default as AddressField } from "./AddressField.vue";
 export { default as DateField } from "./DateField.vue";
 export { default as TimeField } from "./TimeField.vue";

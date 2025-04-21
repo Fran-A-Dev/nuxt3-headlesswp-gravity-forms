@@ -1,12 +1,32 @@
 import { defineAsyncComponent } from "vue";
 
+// Cache to store component references keyed by field type.
+const componentCache = {};
+
+// Mapping from field type to component filename.
+const typeToComponent = {
+  ADDRESS: "AddressField",
+  TEXT: "InputField",
+  TEXTAREA: "InputField",
+  EMAIL: "InputField",
+  NAME: "NameField",
+  PHONE: "PhoneField",
+  SELECT: "DropdownField",
+  MULTISELECT: "DropdownField",
+  CHECKBOX: "ChoiceListField",
+  RADIO: "ChoiceListField",
+  DATE: "DateField",
+  TIME: "TimeField",
+  WEBSITE: "InputField",
+};
+
 export const useFormFields = () => {
+  // For debugging purposes, you can track which types are processed.
   const loggedTypes = new Set();
 
   /**
    * Resolves the Vue component for a given field based on its inputType.
-   * If inputType is not present, falls back to using type.
-   *
+   * Uses a cache so that the same component reference is returned for a given type.
    * @param {Object} field - The Gravity Form field object.
    * @returns {Component|null} The async Vue component for this field.
    */
@@ -15,35 +35,25 @@ export const useFormFields = () => {
       ? field.inputType.toUpperCase()
       : field.type.toUpperCase();
 
-    const typeToComponent = {
-      ADDRESS: "AddressField",
-      TEXT: "InputField",
-      TEXTAREA: "InputField",
-      EMAIL: "EmailField",
-      NAME: "NameField",
-      PHONE: "PhoneField",
-      SELECT: "DropdownField",
-      MULTISELECT: "DropdownField",
-      CHECKBOX: "ChoiceListField",
-      RADIO: "ChoiceListField",
-      DATE: "DateField",
-      TIME: "TimeField",
-      WEBSITE: "InputField",
-      // Add any additional mappings if needed.
-    };
-
-    // Log the field type for debugging on the first occurrence.
     if (!loggedTypes.has(fieldType)) {
       console.log("Mapping field type:", fieldType);
       loggedTypes.add(fieldType);
     }
 
+    if (componentCache[fieldType]) {
+      return componentCache[fieldType];
+    }
+
     const componentName = typeToComponent[fieldType];
-    return componentName
-      ? defineAsyncComponent(() =>
-          import(`~/components/form-fields/${componentName}.vue`)
-        )
-      : null;
+    if (componentName) {
+      const asyncComponent = defineAsyncComponent(() =>
+        import(`~/components/form-fields/${componentName}.vue`)
+      );
+      componentCache[fieldType] = asyncComponent;
+      return asyncComponent;
+    }
+
+    return null;
   };
 
   return {
