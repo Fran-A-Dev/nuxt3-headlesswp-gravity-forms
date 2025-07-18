@@ -54,18 +54,6 @@
         />
       </div>
 
-      <div class="flex flex-wrap gap-2 mt-4">
-        <button
-          v-for="preset in pricePresets"
-          :key="preset.label"
-          @click="setPricePreset(preset.min, preset.max)"
-          type="button"
-          class="px-3 py-1 text-xs border border-gray-300 rounded-full hover:bg-gray-50 transition-colors"
-        >
-          {{ preset.label }}
-        </button>
-      </div>
-
       <button
         v-if="priceRange.min > 0 || priceRange.max < maxPrice"
         @click="applyFilter"
@@ -90,14 +78,6 @@ const emit = defineEmits(["price-changed", "price-applied", "price-cleared"]);
 
 const priceRange = ref({ min: props.initialMin, max: props.initialMax });
 const maxPrice = toRef(props, "maxPrice");
-
-const pricePresets = computed(() => [
-  { label: "Under $50", min: 0, max: 50 },
-  { label: "$50 - $100", min: 50, max: 100 },
-  { label: "$100 - $200", min: 100, max: 200 },
-  { label: "$200 - $500", min: 200, max: 500 },
-  { label: "$500+", min: 500, max: maxPrice.value },
-]);
 
 let priceTimeout;
 
@@ -131,12 +111,6 @@ function handlePriceChange() {
   }, 1000);
 }
 
-function setPricePreset(min, max) {
-  priceRange.value.min = min;
-  priceRange.value.max = max;
-  emit("price-applied", { min, max });
-}
-
 function clearFilter() {
   priceRange.value.min = 0;
   priceRange.value.max = maxPrice.value;
@@ -154,7 +128,7 @@ onUnmounted(() => {
   clearTimeout(priceTimeout);
 });
 
-defineExpose({ clearPrice: clearFilter, setPrice: setPricePreset });
+defineExpose({ clearPrice: clearFilter });
 </script>
 
 <style scoped>
