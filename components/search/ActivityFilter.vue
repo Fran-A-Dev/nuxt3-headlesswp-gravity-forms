@@ -5,18 +5,20 @@
       <button
         v-if="selectedActivity"
         @click="clearFilter"
+        type="button"
         class="text-sm text-blue-600 hover:text-blue-800"
       >
         Clear Filter
       </button>
     </div>
 
-    <!-- Activity Filter Buttons -->
     <div class="flex flex-wrap gap-3">
       <button
         v-for="activity in activities"
         :key="activity.value"
+        type="button"
         @click="selectActivity(activity.value)"
+        :aria-pressed="selectedActivity === activity.value"
         :class="[
           'px-4 py-2 rounded-full border text-sm font-medium transition-colors',
           selectedActivity === activity.value
@@ -28,7 +30,6 @@
       </button>
     </div>
 
-    <!-- Active Filter Display -->
     <div
       v-if="selectedActivity"
       class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200"
@@ -38,7 +39,12 @@
           <strong>Active Filter:</strong>
           {{ getActivityLabel(selectedActivity) }}
         </span>
-        <button @click="clearFilter" class="text-blue-600 hover:text-blue-800">
+        <button
+          @click="clearFilter"
+          type="button"
+          class="text-blue-600 hover:text-blue-800"
+          aria-label="Clear activity filter"
+        >
           <svg
             class="h-4 w-4"
             fill="none"
@@ -50,7 +56,7 @@
               stroke-linejoin="round"
               stroke-width="2"
               d="M6 18L18 6M6 6l12 12"
-            ></path>
+            />
           </svg>
         </button>
       </div>
@@ -61,7 +67,6 @@
 <script setup>
 import { ref } from "vue";
 
-// Props
 const props = defineProps({
   initialActivity: {
     type: String,
@@ -69,44 +74,33 @@ const props = defineProps({
   },
 });
 
-// Emits
 const emit = defineEmits(["activity-selected", "activity-cleared"]);
 
-// Reactive data
 const selectedActivity = ref(props.initialActivity);
-const activities = ref([
+
+const activities = [
   { value: "coding", label: "Coding" },
   { value: "running", label: "Running" },
   { value: "rock-climbing", label: "Rock Climbing" },
-]);
+];
 
-// Methods
-const selectActivity = (activityValue) => {
-  selectedActivity.value = activityValue;
-  emit("activity-selected", activityValue);
-};
+function selectActivity(activity) {
+  selectedActivity.value = activity;
+  emit("activity-selected", activity);
+}
 
-const clearFilter = () => {
+function clearFilter() {
   selectedActivity.value = "";
   emit("activity-cleared");
-};
+}
 
-const getActivityLabel = (activityValue) => {
-  const activity = activities.value.find((a) => a.value === activityValue);
-  return activity ? activity.label : activityValue;
-};
+function getActivityLabel(value) {
+  const activity = activities.find((a) => a.value === value);
+  return activity ? activity.label : value;
+}
 
-// Expose methods for parent component
 defineExpose({
-  clearActivity: () => {
-    selectedActivity.value = "";
-  },
-  setActivity: (activity) => {
-    selectedActivity.value = activity;
-  },
+  clearActivity: clearFilter,
+  setActivity: selectActivity,
 });
 </script>
-
-<style scoped>
-/* Component-specific styles if needed */
-</style>

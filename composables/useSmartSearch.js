@@ -1,164 +1,65 @@
-// Nuxt composable for Smart Search functionality
 export const useSmartSearch = () => {
+  // Retrieve runtime configuration
   const config = useRuntimeConfig();
+  const {
+    public: { smartSearchUrl, smartSearchToken, wordpressUrl },
+  } = config;
 
-  // Get context using similarity search
-  const getContext = async (message) => {
-    const url = config.public.smartSearchUrl;
-    const token = config.public.smartSearchToken;
-
-    if (!url || !token) {
-      throw new Error("Smart Search URL or token not configured");
-    }
-
-    const query = `query GetContext($message: String!, $field: String!, $minScore: Float!) {
-      similarity(
-        input: {
-          nearest: {
-            text: $message,
-            field: $field
-          }
-          minScore: $minScore
-        }) {
-        total
-        docs {
-          id
-          data
-          score
-        }
-      }
-    }`;
-
-    const variables = {
-      message,
-      field: "post_content",
-      minScore: 0.8, // Adjust this value based on your requirements
-    };
-
+  // Internal helper to post GraphQL queries
+  const _post = async ({ url, token, query, variables }) => {
+    if (!url) throw new Error("URL not configured");
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
     try {
-      const response = await $fetch(url, {
+      return await $fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: {
-          query,
-          variables,
-        },
+        headers,
+        body: { query, variables },
       });
-
-      return response;
-    } catch (error) {
-      console.error("Smart Search error:", error);
-      throw error;
+    } catch (err) {
+      console.error("GraphQL error:", err);
+      throw err;
     }
   };
 
-  // Search products using semantic search only
-  const searchProducts = async (searchQuery, options = {}) => {
-    const url = config.public.smartSearchUrl;
-    const token = config.public.smartSearchToken;
+  /**
+   * Perform a semantic similarity search to get context documents.
+   * @param {string} message - The input text to search against.
+   * @param {string} [field='post_content'] - The document field to search.
+   * @param {number} [minScore=0.8] - Minimum similarity threshold.
+   */
+  const getContext = (message, field = "post_content", minScore = 0.8) =>
+    _post({
+      url: smartSearchUrl,
+      token: smartSearchToken,
+      query: `query GetContext($message: String!, $field: String!, $minScore: Float!) {\n  similarity(input: { nearest: { text: $message, field: $field }, minScore: $minScore }) {\n    total\n    docs { id data score }\n  }\n}`,
+      variables: { message, field, minScore },
+    });
 
-    if (!url || !token) {
-      throw new Error("Smart Search URL or token not configured");
-    }
+  /**
+   * Search products via Smart Search API.
+   * @param {string} searchQuery - The search keywords.
+   * @param {{ limit?: number }} [options] - Optional parameters.
+   */
+  const searchProducts = (searchQuery, { limit = 10 } = {}) =>
+    _post({
+      url: smartSearchUrl,
+      token: smartSearchToken,
+      query: `query SearchProducts($query: String!, $limit: Int) {\n  find(\n    query: $query\n    limit: $limit\n    filter: "post_type:product"\n    semanticSearch: { searchBias: 10, fields: [\"post_title\", \"post_content\"] }\n  ) {\n    total\n    documents { id score data }\n  }\n}`,
+      variables: { query: searchQuery, limit },
+    });
 
-    const { limit = 10 } = options;
+  /**
+   * Fetch product details from WPGraphQL.
+   * @param {number[]} productIds - Array of product database IDs.
+   */
+  const getProductDetails = (productIds) =>
+    _post({
+      url: wordpressUrl,
+      token: null,
+      query: `query GetProductDetails($ids: [Int]!) {\n  products(where: { include: $ids }) {\n    edges { node { databaseId name image { sourceUrl altText } ... on ProductWithPricing { regularPrice } } }\n  }\n}`,
+      variables: { ids: productIds },
+    });
 
-    const query = `query SearchProducts($query: String!, $limit: Int) {
-      find(
-        query: $query
-        limit: $limit
-        filter: "post_type:product"
-        semanticSearch: {searchBias: 10, fields: ["post_title", "post_content"]}
-      ) {
-        total
-        documents {
-          id
-          score
-          data
-        }
-      }
-    }`;
-
-    const variables = {
-      query: searchQuery,
-      limit,
-    };
-
-    try {
-      const response = await $fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: {
-          query,
-          variables,
-        },
-      });
-
-      return response;
-    } catch (error) {
-      console.error("Smart Search error:", error);
-      throw error;
-    }
-  };
-
-  // Get product details from WordPress GraphQL after search
-  const getProductDetails = async (productIds) => {
-    const wordpressUrl = config.public.wordpressUrl;
-
-    if (!wordpressUrl) {
-      throw new Error("WordPress URL not configured");
-    }
-
-    const query = `
-      query GetProductDetails($ids: [Int]!) {
-        products(where: {include: $ids}) {
-          edges {
-            node {
-              databaseId
-              name
-              image {
-                sourceUrl
-                altText
-              }
-              ... on ProductWithPricing {
-                regularPrice
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await $fetch(wordpressUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: {
-          query,
-          variables: {
-            ids: productIds,
-          },
-        },
-      });
-
-      return response;
-    } catch (error) {
-      console.error("WordPress GraphQL error:", error);
-      throw error;
-    }
-  };
-
-  return {
-    getContext,
-    searchProducts,
-    getProductDetails,
-  };
+  return { getContext, searchProducts, getProductDetails };
 };

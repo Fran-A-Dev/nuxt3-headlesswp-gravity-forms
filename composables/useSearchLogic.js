@@ -1,244 +1,131 @@
-// Composable for search business logic
 import { useSmartSearch } from "./useSmartSearch";
 import { ref } from "vue";
 
 export const useSearchLogic = () => {
   const { searchProducts, getProductDetails } = useSmartSearch();
-  const config = useRuntimeConfig();
-
-  // Search configuration
   const resultsLimit = ref(20);
 
-  // Core search method
-  const performSearch = async (query, emit) => {
-    if (!query.trim()) {
+  const mapBasicResults = (documents) =>
+    documents.map(({ data, score }) => ({
+      id: data.ID,
+      title: data.post_title,
+      description: data.post_content,
+      score,
+      image: "",
+      price: 0,
+    }));
+
+  const performSearch = async (query) => {
+    if (!query || !query.trim()) {
       return { success: false, error: "Empty query" };
     }
-
     const startTime = Date.now();
 
     try {
-      const response = await searchProducts(query, {
-        limit: parseInt(resultsLimit.value),
+      const { data } = await searchProducts(query, {
+        limit: Number(resultsLimit.value),
       });
 
-      const searchTime = Date.now() - startTime;
-
-      if (response?.data?.find) {
-        const basicResults = response.data.find.documents.map((doc) => ({
-          id: doc.data.ID,
-          title: doc.data.post_title,
-          description: doc.data.post_content,
-          score: doc.score,
-          image: "",
-          price: 0,
-        }));
-
-        return {
-          success: true,
-          results: basicResults,
-          total: response.data.find.total,
-          searchTime,
-        };
-      } else {
+      if (!data?.find) {
         throw new Error("Invalid search response");
       }
-    } catch (err) {
-      console.error("Search error:", err);
+
+      const results = mapBasicResults(data.find.documents);
+      const searchTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        results,
+        total: data.find.total,
+        searchTime,
+      };
+    } catch (error) {
+      console.error("Search error:", error);
       return {
         success: false,
-        error: `Search failed: ${err.message || "Please try again."}`,
+        error: `Search failed: ${error.message || "Please try again."}`,
       };
     }
   };
 
-  // Activity search method
   const performActivitySearch = async (activityValue) => {
-    if (!activityValue) {
+    if (!activityValue || !activityValue.trim()) {
       return { success: false, error: "No activity selected" };
     }
+    const label = getActivityLabel(activityValue);
+    return performSearch(label);
+  };
 
-    const activityLabel = getActivityLabel(activityValue);
+  const performPriceOnlySearch = async ({ min, max }) => {
     const startTime = Date.now();
 
     try {
-      const url = config.public.smartSearchUrl;
-      const token = config.public.smartSearchToken;
-
-      if (!url || !token) {
-        throw new Error("Smart Search URL or token not configured");
-      }
-
-      const query = `query SearchByActivity($query: String!, $limit: Int, $filter: String) {
-        find(
-          query: $query
-          limit: $limit
-          filter: $filter
-          semanticSearch: {searchBias: 10, fields: ["post_title", "post_content"]}
-        ) {
-          total
-          documents {
-            id
-            score
-            data
-          }
-        }
-      }`;
-
-      const variables = {
-        query: activityLabel,
-        limit: parseInt(resultsLimit.value),
-        filter: "post_type:product",
-      };
-
-      const response = await $fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: {
-          query,
-          variables,
-        },
+      const { data } = await searchProducts("*", {
+        limit: Number(resultsLimit.value),
       });
 
-      const searchTime = Date.now() - startTime;
-
-      if (response?.data?.find) {
-        const basicResults = response.data.find.documents.map((doc) => ({
-          id: doc.data.ID,
-          title: doc.data.post_title,
-          description: doc.data.post_content,
-          score: doc.score,
-          image: "",
-          price: 0,
-        }));
-
-        return {
-          success: true,
-          results: basicResults,
-          total: response.data.find.total,
-          searchTime,
-          query: activityLabel,
-        };
-      } else {
+      if (!data?.find) {
         throw new Error("Invalid search response");
       }
-    } catch (err) {
-      console.error("Activity search error:", err);
+
+      const basic = mapBasicResults(data.find.documents);
+      const detailed = await fetchCompleteProductData(basic);
+      const filtered = applyPriceFilter(detailed, { min, max });
+      const searchTime = Date.now() - startTime;
+
+      return {
+        success: true,
+        results: filtered,
+        total: filtered.length,
+        searchTime,
+        query: `Price: $${min} - $${max}`,
+      };
+    } catch (error) {
+      console.error("Price search error:", error);
       return {
         success: false,
-        error: `Search failed: ${err.message || "Please try again."}`,
+        error: `Search failed: ${error.message || "Please try again."}`,
       };
     }
   };
 
-  // Price-only search method
-  const performPriceOnlySearch = async (priceRange) => {
-    const startTime = Date.now();
-
-    try {
-      const response = await searchProducts("*", {
-        limit: 100,
-      });
-
-      const searchTime = Date.now() - startTime;
-
-      if (response?.data?.find) {
-        const basicResults = response.data.find.documents.map((doc) => ({
-          id: doc.data.ID,
-          title: doc.data.post_title,
-          description: doc.data.post_content,
-          score: doc.score,
-          image: "",
-          price: 0,
-        }));
-
-        return {
-          success: true,
-          results: basicResults,
-          total: response.data.find.total,
-          searchTime,
-          query: `Price: $${priceRange.min} - $${priceRange.max}`,
-        };
-      } else {
-        throw new Error("Invalid search response");
-      }
-    } catch (err) {
-      console.error("Price search error:", err);
-      return {
-        success: false,
-        error: `Search failed: ${err.message || "Please try again."}`,
-      };
-    }
-  };
-
-  // Fetch complete product data from WordPress
   const fetchCompleteProductData = async (products) => {
+    if (!products.length) return [];
+
     try {
-      const productIds = products.map((p) => p.id);
-      console.log("Fetching WordPress data for product IDs:", productIds);
+      const ids = products.map((p) => p.id);
+      const response = await getProductDetails(ids);
+      const edges = response?.data?.products?.edges || [];
 
-      const response = await getProductDetails(productIds);
-      console.log("Full WordPress GraphQL response:", response);
+      return products.map((prod) => {
+        const edge = edges.find((e) => e.node.databaseId === prod.id);
+        if (!edge) return prod;
 
-      if (response?.data?.products?.edges) {
-        console.log(
-          "WordPress GraphQL response edges:",
-          response.data.products.edges
-        );
-
-        return products.map((result) => {
-          const productDetail = response.data.products.edges.find(
-            (edge) => edge.node.databaseId === result.id
-          );
-
-          if (productDetail) {
-            const imageUrl = productDetail.node.image?.sourceUrl || "";
-            console.log(`Product ${result.id} image URL:`, imageUrl);
-
-            return {
-              ...result,
-              image: imageUrl,
-              price: productDetail.node.regularPrice
-                ? parseFloat(
-                    productDetail.node.regularPrice.replace(/[^0-9.]/g, "")
-                  )
-                : 0,
-            };
-          } else {
-            console.log(`No WordPress data found for product ID: ${result.id}`);
-          }
-          return result;
-        });
-      } else {
-        console.log("No products edges in WordPress response:", response?.data);
-        return products;
-      }
-    } catch (err) {
-      console.error("Error fetching product details:", err);
-      console.error("Error details:", err.response || err.message);
+        const { image, regularPrice } = edge.node;
+        return {
+          ...prod,
+          image: image?.sourceUrl || "",
+          price: regularPrice
+            ? parseFloat(regularPrice.replace(/[^0-9.]/g, ""))
+            : 0,
+        };
+      });
+    } catch (error) {
+      console.error("Error fetching product details:", error);
       return products;
     }
   };
 
-  // Apply price filter to existing results
-  const applyPriceFilter = (results, priceRange) => {
-    return results.filter((product) => {
-      return product.price >= priceRange.min && product.price <= priceRange.max;
-    });
-  };
+  const applyPriceFilter = (results, { min, max }) =>
+    results.filter((p) => p.price >= min && p.price <= max);
 
-  // Utility function to get activity label
   const getActivityLabel = (activityValue) => {
-    const activities = [
-      { value: "coding", label: "Coding" },
-      { value: "running", label: "Running" },
-      { value: "rock-climbing", label: "Rock Climbing" },
-    ];
-    const activity = activities.find((a) => a.value === activityValue);
-    return activity ? activity.label : activityValue;
+    const labels = {
+      coding: "Coding",
+      running: "Running",
+      "rock-climbing": "Rock Climbing",
+    };
+    return labels[activityValue] || activityValue;
   };
 
   return {
